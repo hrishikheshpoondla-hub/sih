@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  # SIH26146 Core Platform (FastAPI + DuckDB + Bundled Dashboard)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sih26146-app
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DUCKDB_PATH=/app/data/database/sih26146.duckdb
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_MODEL=nemotron-3.5-lightning
+    volumes:
+      - ./data/database:/app/data/database
+      - ./data/raw:/app/data/raw
+      - ./data/sample:/app/data/sample
+    depends_on:
+      - ollama
+
+  # Local Offline Ollama Service (NVIDIA Nemotron 3.5 Lightning)
+  ollama:
+    image: ollama/ollama:latest
+    container_name: sih26146-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    # To enable NVIDIA GPU acceleration on Linux with nvidia-container-toolkit:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+volumes:
+  ollama_models:
