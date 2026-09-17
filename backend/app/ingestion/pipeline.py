@@ -29,6 +29,7 @@ import pandas as pd
 
 from app.database.connection import DatabaseManager
 from app.utils.validation import validate_record, validate_timestamp
+from app.utils.geoip import resolve_ip
 
 class IngestionPipeline:
     def __init__(self, db_conn=None):
@@ -255,8 +256,18 @@ class IngestionPipeline:
                 dst_port = int(rec.get("dst_port", 8333))
                 fee = float(rec.get("fee", 0.0))
                 script_type = rec.get("script_type", "p2pkh")
-                geo_country = rec.get("geo_country", "")
-                asn = rec.get("asn", "")
+                geo_country = rec.get("geo_country", "") or ""
+                asn = rec.get("asn", "") or ""
+
+                # SIH26146 spec: Offline GeoIP resolution (Section iii)
+                # Enriches geo_country and asn from src_ip whenever fields are
+                # empty in the dataset (e.g., raw captures with no pre-labelling).
+                if not geo_country or not asn:
+                    resolved_country, resolved_asn = resolve_ip(src_ip)
+                    if not geo_country:
+                        geo_country = resolved_country
+                    if not asn:
+                        asn = resolved_asn
 
                 in_addrs = rec["input_addresses"]
                 in_amts = rec.get("input_amounts", [])
